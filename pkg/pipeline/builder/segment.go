@@ -28,6 +28,9 @@ import (
 	"github.com/livekit/protocol/logger"
 )
 
+// maximum segment size in bytes
+const maxSegmentSize uint64 = 20 * 1000 * 1000
+
 type FirstSampleMetadata struct {
 	StartDate int64 // Real time date of the first media sample
 }
@@ -56,7 +59,10 @@ func BuildSegmentBin(pipeline *gstreamer.Pipeline, p *config.PipelineConfig) (*g
 	if err = sink.SetProperty("max-size-time", uint64(time.Duration(o.SegmentDuration)*time.Second)); err != nil {
 		return nil, errors.ErrGstPipelineError(err)
 	}
-	if err = sink.SetProperty("send-keyframe-requests", true); err != nil {
+	if err = sink.SetProperty("max-size-bytes", maxSegmentSize); err != nil {
+		return nil, errors.ErrGstPipelineError(err)
+	}
+	if err = sink.SetProperty("send-keyframe-requests", false); err != nil {
 		return nil, errors.ErrGstPipelineError(err)
 	}
 	if err = sink.SetProperty("muxer-factory", "mpegtsmux"); err != nil {
