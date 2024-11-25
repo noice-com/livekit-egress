@@ -120,7 +120,7 @@ func NewServiceConfig(confString string) (*ServiceConfig, error) {
 		conf.TemplateBase = fmt.Sprintf(defaultTemplateBaseTemplate, conf.TemplatePort)
 	}
 
-	if err := conf.initLogger("nodeID", conf.NodeID, "clusterID", conf.ClusterID); err != nil {
+	if err := conf.InitLogger("nodeID", conf.NodeID, "clusterID", conf.ClusterID); err != nil {
 		return nil, err
 	}
 

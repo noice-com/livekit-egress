@@ -130,7 +130,7 @@ func NewPipelineConfig(confString string, req *rpc.StartEgressRequest) (*Pipelin
 		return nil, errors.ErrCouldNotParseConfig(err)
 	}
 
-	if err := p.initLogger(
+	if err := p.InitLogger(
 		"nodeID", p.NodeID,
 		"handlerID", p.HandlerID,
 		"clusterID", p.ClusterID,

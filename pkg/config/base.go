@@ -106,7 +106,7 @@ type SessionLimits struct {
 	ImageOutputMaxDuration   time.Duration `yaml:"image_output_max_duration"`
 }
 
-func (c *BaseConfig) initLogger(values ...interface{}) error {
+func (c *BaseConfig) InitLogger(values ...interface{}) error {
 	if c.LogLevel != "" {
 		logger.Warnw("log_level deprecated. use logging instead", nil)
 		c.Logging.Level = c.LogLevel
