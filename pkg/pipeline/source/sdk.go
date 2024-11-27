@@ -384,6 +384,8 @@ func (s *SDKSource) onTrackSubscribed(track *webrtc.TrackRemote, pub *lksdk.Remo
 	ts := &config.TrackSource{
 		TrackID:     pub.SID(),
 		Kind:        pub.Kind(),
+		Receiver:    pub.Receiver(),
+		Track:       track,
 		MimeType:    types.MimeType(strings.ToLower(track.Codec().MimeType)),
 		PayloadType: track.Codec().PayloadType,
 		ClockRate:   track.Codec().ClockRate,

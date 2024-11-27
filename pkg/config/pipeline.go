@@ -88,6 +88,8 @@ type SDKSourceParams struct {
 type TrackSource struct {
 	TrackID     string
 	Kind        lksdk.TrackKind
+	Receiver    *webrtc.RTPReceiver
+	Track       *webrtc.TrackRemote
 	AppSrc      *app.Source
 	MimeType    types.MimeType
 	PayloadType webrtc.PayloadType
