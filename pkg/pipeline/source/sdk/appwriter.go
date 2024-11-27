@@ -153,6 +153,8 @@ func (w *AppWriter) start() {
 		w.readNext()
 	}
 
+	w.callbacks.OnTrackForwardRTP(w.track, nil)
+
 	// clean up
 	if w.playing.IsBroken() {
 		w.callbacks.OnEOSSent()
@@ -244,6 +246,8 @@ func (w *AppWriter) pushSamples() error {
 	for _, pkt := range pkts {
 		sn := pkt.SequenceNumber
 		ts := pkt.Timestamp
+
+		w.callbacks.OnTrackForwardRTP(w.track, pkt)
 
 		w.translator.Translate(pkt)
 

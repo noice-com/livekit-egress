@@ -389,6 +389,9 @@ func (s *SDKSource) onTrackSubscribed(track *webrtc.TrackRemote, pub *lksdk.Remo
 		ClockRate:   track.Codec().ClockRate,
 	}
 
+	// Use explicit callback instead of modifying OnTrackAdded
+	s.callbacks.OnTrackSubscribed(track, pub, rp)
+
 	<-s.callbacks.GstReady
 	switch ts.MimeType {
 	case types.MimeTypeOpus:

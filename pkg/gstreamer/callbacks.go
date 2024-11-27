@@ -21,6 +21,10 @@ import (
 
 	"github.com/livekit/egress/pkg/config"
 	"github.com/livekit/egress/pkg/errors"
+
+	lksdk "github.com/livekit/server-sdk-go/v2"
+	"github.com/pion/rtp"
+	"github.com/pion/webrtc/v3"
 )
 
 type Callbacks struct {
@@ -33,6 +37,9 @@ type Callbacks struct {
 	onStop  []func() error
 
 	// source callbacks
+	onTrackSubscribed []func(track *webrtc.TrackRemote, pub *lksdk.RemoteTrackPublication, rp *lksdk.RemoteParticipant)
+	onTrackForwardRTP []func(track *webrtc.TrackRemote, packet *rtp.Packet)
+
 	onTrackAdded   []func(*config.TrackSource)
 	onTrackMuted   []func(string)
 	onTrackUnmuted []func(string)
@@ -76,6 +83,38 @@ func (c *Callbacks) OnStop() error {
 		errArray.Check(f())
 	}
 	return errArray.ToError()
+}
+
+func (c *Callbacks) AddOnTrackSubscribed(f func(*webrtc.TrackRemote, *lksdk.RemoteTrackPublication, *lksdk.RemoteParticipant)) {
+	c.mu.Lock()
+	c.onTrackSubscribed = append(c.onTrackSubscribed, f)
+	c.mu.Unlock()
+}
+
+func (c *Callbacks) OnTrackSubscribed(track *webrtc.TrackRemote, pub *lksdk.RemoteTrackPublication, rp *lksdk.RemoteParticipant) {
+	c.mu.RLock()
+	onTrackSubscribed := c.onTrackSubscribed
+	c.mu.RUnlock()
+
+	for _, f := range onTrackSubscribed {
+		f(track, pub, rp)
+	}
+}
+
+func (c *Callbacks) AddOnTrackForwardRTP(f func(*webrtc.TrackRemote, *rtp.Packet)) {
+	c.mu.Lock()
+	c.onTrackForwardRTP = append(c.onTrackForwardRTP, f)
+	c.mu.Unlock()
+}
+
+func (c *Callbacks) OnTrackForwardRTP(track *webrtc.TrackRemote, packet *rtp.Packet) {
+	c.mu.RLock()
+	onTrackForwardRTP := c.onTrackForwardRTP
+	c.mu.RUnlock()
+
+	for _, f := range onTrackForwardRTP {
+		f(track, packet)
+	}
 }
 
 func (c *Callbacks) AddOnTrackAdded(f func(*config.TrackSource)) {

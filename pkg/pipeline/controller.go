@@ -65,7 +65,9 @@ type Controller struct {
 	stopped    core.Fuse
 }
 
-func New(ctx context.Context, conf *config.PipelineConfig, ipcServiceClient ipc.EgressServiceClient) (*Controller, error) {
+type ControllerOption func(*Controller)
+
+func New(ctx context.Context, conf *config.PipelineConfig, ipcServiceClient ipc.EgressServiceClient, opts ...ControllerOption) (*Controller, error) {
 	ctx, span := tracer.Start(ctx, "Pipeline.New")
 	defer span.End()
 
@@ -82,6 +84,10 @@ func New(ctx context.Context, conf *config.PipelineConfig, ipcServiceClient ipc.
 	}
 	c.callbacks.SetOnError(c.OnError)
 	c.callbacks.SetOnEOSSent(c.onEOSSent)
+
+	for _, opt := range opts {
+		opt(c)
+	}
 
 	// initialize gst
 	go func() {
@@ -113,6 +119,12 @@ func New(ctx context.Context, conf *config.PipelineConfig, ipcServiceClient ipc.
 	}
 
 	return c, nil
+}
+
+func WithCallbacks(f func(*gstreamer.Callbacks)) ControllerOption {
+	return func(c *Controller) {
+		f(c.callbacks)
+	}
 }
 
 func (c *Controller) BuildPipeline() error {
