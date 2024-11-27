@@ -83,10 +83,6 @@ func New(ctx context.Context, conf *config.PipelineConfig, ipcServiceClient ipc.
 		monitor: stats.NewHandlerMonitor(conf.NodeID, conf.ClusterID, conf.Info.EgressId),
 	}
 
-	for _, opt := range opts {
-		opt(c)
-	}
-
 	c.callbacks.SetOnError(c.OnError)
 	c.callbacks.SetOnEOSSent(c.onEOSSent)
 
@@ -119,12 +115,22 @@ func New(ctx context.Context, conf *config.PipelineConfig, ipcServiceClient ipc.
 		return nil, err
 	}
 
+	for _, opt := range opts {
+		opt(c)
+	}
+
 	return c, nil
 }
 
 func WithCallbacks(f func(*gstreamer.Callbacks)) ControllerOption {
 	return func(c *Controller) {
 		f(c.callbacks)
+	}
+}
+
+func WithPipeline(f func(*gstreamer.Pipeline)) ControllerOption {
+	return func(c *Controller) {
+		f(c.p)
 	}
 }
 
