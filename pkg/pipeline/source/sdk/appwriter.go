@@ -153,6 +153,8 @@ func (w *AppWriter) start() {
 		w.readNext()
 	}
 
+	w.callbacks.OnTrackForwardRTP(w.track, nil)
+
 	// clean up
 	if w.playing.IsBroken() {
 		w.callbacks.OnEOSSent()
@@ -255,6 +257,8 @@ func (w *AppWriter) pushSamples() error {
 			}
 			return err
 		}
+
+		w.callbacks.OnTrackForwardRTP(w.track, pkt)
 
 		if w.logFile != nil {
 			_, _ = w.logFile.WriteString(fmt.Sprintf("%s,%d,%d,%d,%d\n",
