@@ -361,16 +361,12 @@ func (s *SDKSource) subscribe(track lksdk.TrackPublication) error {
 // ----- Callbacks -----
 
 func (s *SDKSource) onTrackSubscribed(track *webrtc.TrackRemote, pub *lksdk.RemoteTrackPublication, rp *lksdk.RemoteParticipant) {
-	logger.Infow("onTrackSubscribed HERE1");
-
 	s.subLock.RLock()
 
 	if s.initialized.IsBroken() && s.RequestType != types.RequestTypeParticipant {
 		s.subLock.RUnlock()
 		return
 	}
-
-	logger.Infow("onTrackSubscribed HERE2");
 
 	var onSubscribeErr error
 	defer func() {
@@ -388,14 +384,14 @@ func (s *SDKSource) onTrackSubscribed(track *webrtc.TrackRemote, pub *lksdk.Remo
 	ts := &config.TrackSource{
 		TrackID:     pub.SID(),
 		Kind:        pub.Kind(),
-		Receiver:    pub.Receiver(),
-		Track:       track,
 		MimeType:    types.MimeType(strings.ToLower(track.Codec().MimeType)),
 		PayloadType: track.Codec().PayloadType,
 		ClockRate:   track.Codec().ClockRate,
 	}
 
-	logger.Infow("onTrackSubscribed HERE3");
+	logger.Infow("onTrackSubscribed HERE1");
+	// Use explicit callback instead of modifying OnTrackAdded
+	s.callbacks.OnTrackSubscribed(track, pub, rp)
 
 	<-s.callbacks.GstReady
 	switch ts.MimeType {
@@ -455,11 +451,8 @@ func (s *SDKSource) onTrackSubscribed(track *webrtc.TrackRemote, pub *lksdk.Remo
 
 	if s.initialized.IsBroken() {
 		<-s.callbacks.BuildReady
-		logger.Infow("onTrackSubscribed HERE4");
 		s.callbacks.OnTrackAdded(ts)
-		logger.Infow("onTrackSubscribed HERE5");
 	} else {
-		logger.Infow("onTrackSubscribed HERE6");
 		s.mu.Lock()
 		switch s.RequestType {
 		case types.RequestTypeTrackComposite:
@@ -488,7 +481,6 @@ func (s *SDKSource) onTrackSubscribed(track *webrtc.TrackRemote, pub *lksdk.Remo
 		}
 		s.mu.Unlock()
 	}
-		logger.Infow("onTrackSubscribed HERE7");
 }
 
 func (s *SDKSource) createWriter(

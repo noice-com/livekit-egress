@@ -21,6 +21,9 @@ import (
 
 	"github.com/livekit/egress/pkg/config"
 	"github.com/livekit/egress/pkg/errors"
+
+	"github.com/pion/webrtc/v3"
+	lksdk "github.com/livekit/server-sdk-go/v2"
 )
 
 type Callbacks struct {
@@ -33,6 +36,7 @@ type Callbacks struct {
 	onStop  []func() error
 
 	// source callbacks
+	onTrackSubscribed []func(track *webrtc.TrackRemote, pub *lksdk.RemoteTrackPublication, rp *lksdk.RemoteParticipant)
 	onTrackAdded   []func(*config.TrackSource)
 	onTrackMuted   []func(string)
 	onTrackUnmuted []func(string)
@@ -76,6 +80,22 @@ func (c *Callbacks) OnStop() error {
 		errArray.Check(f())
 	}
 	return errArray.ToError()
+}
+
+func (c *Callbacks) AddOnTrackSubscribed(f func(*webrtc.TrackRemote, *lksdk.RemoteTrackPublication, *lksdk.RemoteParticipant)) {
+	c.mu.Lock()
+	c.onTrackSubscribed = append(c.onTrackSubscribed, f)
+	c.mu.Unlock()
+}
+
+func (c *Callbacks) OnTrackSubscibed(track *webrtc.TrackRemote, pub *lksdk.RemoteTrackPublication, rp *lksdk.RemoteParticipant) {
+	c.mu.RLock()
+	onTrackSubscribed := c.onTrackSubscribed
+	c.mu.RUnlock()
+
+	for _, f := range onTrackSubscribed {
+		f(track, pub, rp)
+	}
 }
 
 func (c *Callbacks) AddOnTrackAdded(f func(*config.TrackSource)) {
