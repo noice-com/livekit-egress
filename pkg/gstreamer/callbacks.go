@@ -88,7 +88,7 @@ func (c *Callbacks) AddOnTrackSubscribed(f func(*webrtc.TrackRemote, *lksdk.Remo
 	c.mu.Unlock()
 }
 
-func (c *Callbacks) OnTrackSubscibed(track *webrtc.TrackRemote, pub *lksdk.RemoteTrackPublication, rp *lksdk.RemoteParticipant) {
+func (c *Callbacks) OnTrackSubscribed(track *webrtc.TrackRemote, pub *lksdk.RemoteTrackPublication, rp *lksdk.RemoteParticipant) {
 	c.mu.RLock()
 	onTrackSubscribed := c.onTrackSubscribed
 	c.mu.RUnlock()
