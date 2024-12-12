@@ -247,8 +247,6 @@ func (w *AppWriter) pushSamples() error {
 		sn := pkt.SequenceNumber
 		ts := pkt.Timestamp
 
-		w.callbacks.OnTrackForwardRTP(w.track, pkt)
-
 		w.translator.Translate(pkt)
 
 		// get PTS
@@ -259,6 +257,8 @@ func (w *AppWriter) pushSamples() error {
 			}
 			return err
 		}
+
+		w.callbacks.OnTrackForwardRTP(w.track, pkt)
 
 		if w.logFile != nil {
 			_, _ = w.logFile.WriteString(fmt.Sprintf("%s,%d,%d,%d,%d\n",
