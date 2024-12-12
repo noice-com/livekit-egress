@@ -225,7 +225,7 @@ func (w *AppWriter) readNext() {
 	}
 
 	// push completed packets to appsrc
-	if err = w.pushSamples(); err != nil {
+	if err = w.pushSamples(false); err != nil {
 		w.draining.Once(func() { w.endStream.Break() })
 	}
 }
@@ -238,6 +238,15 @@ func (w *AppWriter) handleReadError(err error) {
 
 	case errors.As(err, &netErr) && netErr.Timeout():
 		if !w.active.Load() {
+			// buffers can only be pushed to the appsrc while in the playing state
+			if w.playing.IsBroken() {
+				// push completed packets to appsrc
+				//
+				// clear jitter buffer by processing when there's a long inactivity, for RTMP reconnect/HLS segment writing
+				if err = w.pushSamples(true); err != nil {
+					w.draining.Once(func() { w.endStream.Break() })
+				}
+			}
 			return
 		}
 		lastRecv := w.lastReceived.Load()
@@ -264,8 +273,8 @@ func (w *AppWriter) handleReadError(err error) {
 	}
 }
 
-func (w *AppWriter) pushSamples() error {
-	samples := w.buffer.PopSamples(false)
+func (w *AppWriter) pushSamples(force bool) error {
+	samples := w.buffer.PopSamples(force)
 	for _, sample := range samples {
 		for _, pkt := range sample {
 			w.translator.Translate(pkt)
