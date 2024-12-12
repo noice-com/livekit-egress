@@ -190,6 +190,15 @@ func (w *AppWriter) readNext() {
 			w.endStream.Break()
 		case errors.As(err, &netErr) && netErr.Timeout():
 			if !w.active.Load() {
+				// buffers can only be pushed to the appsrc while in the playing state
+				if w.playing.IsBroken() {
+					// push completed packets to appsrc
+					//
+					// clear jitter buffer by processing when there's a long inactivity, for RTMP reconnect/HLS segment writing
+					if err = w.pushSamples(true); err != nil {
+						w.draining.Once(w.endStream.Break)
+					}
+				}
 				return
 			}
 			timeout := w.lastRead
@@ -236,13 +245,13 @@ func (w *AppWriter) readNext() {
 	}
 
 	// push completed packets to appsrc
-	if err = w.pushSamples(); err != nil {
+	if err = w.pushSamples(false); err != nil {
 		w.draining.Once(w.endStream.Break)
 	}
 }
 
-func (w *AppWriter) pushSamples() error {
-	pkts := w.buffer.Pop(false)
+func (w *AppWriter) pushSamples(force bool) error {
+	pkts := w.buffer.Pop(force)
 	for _, pkt := range pkts {
 		sn := pkt.SequenceNumber
 		ts := pkt.Timestamp
