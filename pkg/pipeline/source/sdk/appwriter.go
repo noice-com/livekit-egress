@@ -15,6 +15,7 @@
 package sdk
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -71,6 +72,8 @@ type AppWriter struct {
 	draining  core.Fuse
 	endStream core.Fuse
 	finished  core.Fuse
+
+	packetsSkipped uint32
 }
 
 func NewAppWriter(
@@ -153,6 +156,10 @@ func (w *AppWriter) start() {
 		w.readNext()
 	}
 
+	if w.packetsSkipped != 0 {
+		w.logger.Infow(fmt.Sprintf("Skipped %d consecutive RTP packets of blank frames at end of stream", w.packetsSkipped))
+	}
+
 	w.callbacks.OnTrackForwardRTP(w.track, nil)
 
 	// clean up
@@ -178,6 +185,100 @@ func (w *AppWriter) start() {
 	}
 
 	w.finished.Break()
+}
+
+var (
+	H264KeyFrame2x2SPS = []byte{
+		0x67, 0x42, 0xc0, 0x1f, 0x0f, 0xd9, 0x1f, 0x88,
+		0x88, 0x84, 0x00, 0x00, 0x03, 0x00, 0x04, 0x00,
+		0x00, 0x03, 0x00, 0xc8, 0x3c, 0x60, 0xc9, 0x20,
+	}
+	H264KeyFrame2x2PPS = []byte{
+		0x68, 0x87, 0xcb, 0x83, 0xcb, 0x20,
+	}
+	H264KeyFrame2x2IDR = []byte{
+		0x65, 0x88, 0x84, 0x0a, 0xf2, 0x62, 0x80, 0x00,
+		0xa7, 0xbe,
+	}
+	H264KeyFrame2x2 = [][]byte{H264KeyFrame2x2SPS, H264KeyFrame2x2PPS, H264KeyFrame2x2IDR}
+
+	OpusSilenceFrame = []byte{
+		0xf8, 0xff, 0xfe, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}
+)
+
+// Livekit server can send blank frames during closing of the stream
+// Avoid creation of one more extra HLS segment
+func (w *AppWriter) ignoreBlankFrame(pkt *rtp.Packet) bool {
+	packetsSkipped := w.packetsSkipped
+	payloadSize := len(pkt.Payload)
+
+	switch w.codec {
+	case types.MimeTypeOpus:
+		switch payloadSize {
+		case 80:
+			if bytes.Compare(OpusSilenceFrame, pkt.Payload[0:0+len(OpusSilenceFrame)]) == 0 {
+				w.packetsSkipped += 1
+			}
+		default:
+			w.packetsSkipped = 0
+		}
+	case types.MimeTypeH264:
+		switch payloadSize {
+		case 47:
+			match := true
+			offset := 0
+
+			// STAP-A
+			if pkt.Payload[offset] != 0x18 {
+				match = false
+			}
+			offset += 1
+
+			offset += 2
+			if match && bytes.Compare(H264KeyFrame2x2SPS, pkt.Payload[offset:offset+len(H264KeyFrame2x2SPS)]) != 0 {
+				match = false
+			}
+			offset += len(H264KeyFrame2x2SPS)
+
+			offset += 2
+			if match && bytes.Compare(H264KeyFrame2x2PPS, pkt.Payload[offset:offset+len(H264KeyFrame2x2PPS)]) != 0 {
+				match = false
+			}
+			offset += len(H264KeyFrame2x2PPS)
+
+			offset += 2
+			if match && bytes.Compare(H264KeyFrame2x2IDR, pkt.Payload[offset:offset+len(H264KeyFrame2x2IDR)]) != 0 {
+				match = false
+			}
+			offset += len(H264KeyFrame2x2IDR)
+
+			if match {
+				w.packetsSkipped += 1
+			}
+		default:
+			w.packetsSkipped = 0
+		}
+	default:
+	}
+
+	if w.packetsSkipped != 0 {
+		return true
+	} else {
+		if packetsSkipped != 0 {
+			w.logger.Infow(fmt.Sprintf("Skipped %d consecutive RTP packets of blank frames", packetsSkipped))
+		}
+		return false
+	}
 }
 
 func (w *AppWriter) readNext() {
@@ -227,6 +328,13 @@ func (w *AppWriter) readNext() {
 		w.Initialize(pkt)
 	}
 	w.lastRead = time.Now()
+
+	if !w.active.Load() {
+		if w.ignoreBlankFrame(pkt) {
+			return
+		}
+	}
+
 	if !w.active.Swap(true) {
 		// set track active
 		w.logger.Debugw("track active", "timestamp", time.Since(w.startTime))
