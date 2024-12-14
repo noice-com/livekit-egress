@@ -39,6 +39,7 @@ type PlaylistWriter interface {
 type basePlaylistWriter struct {
 	filename       string
 	targetDuration int
+	discontinuity  bool
 }
 
 type eventPlaylistWriter struct {
@@ -76,7 +77,14 @@ func (p *basePlaylistWriter) createSegmentEntry(dateTime time.Time, duration flo
 
 	sb.WriteString("#EXT-X-PROGRAM-DATE-TIME:")
 	sb.WriteString(dateTime.UTC().Format("2006-01-02T15:04:05.999Z07:00"))
+	if p.discontinuity {
+		p.discontinuity = false
+		sb.WriteString("\n#EXT-X-DISCONTINUITY")
+	}
 	sb.WriteString("\n#EXTINF:")
+	if duration > float64(p.targetDuration) {
+		p.discontinuity = true
+	}
 	sb.WriteString(strconv.FormatFloat(duration, 'f', 3, 32))
 	sb.WriteString(",\n")
 	sb.WriteString(filename)
