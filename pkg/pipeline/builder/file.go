@@ -35,7 +35,7 @@ func BuildFileBin(pipeline *gstreamer.Pipeline, p *config.PipelineConfig) (*gstr
 	case types.OutputTypeIVF:
 		mux, err = gst.NewElement("avmux_ivf")
 	case types.OutputTypeMP4:
-		mux, err = gst.NewElement("mp4mux")
+		mux, err = gst.NewElement("isofmp4mux")
 	case types.OutputTypeWebM:
 		mux, err = gst.NewElement("webmmux")
 	default:
