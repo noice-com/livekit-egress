@@ -88,6 +88,8 @@ func (c *BaseConfig) initLogger(values ...interface{}) error {
 	gstDebug = append(gstDebug,
 		"rtmpclient:4",
 		"srtlib:1",
+		"videoparseutils:1",
+		"codecparsers_h264:1",
 	)
 	if err := os.Setenv("GST_DEBUG", strings.Join(gstDebug, ",")); err != nil {
 		return err
