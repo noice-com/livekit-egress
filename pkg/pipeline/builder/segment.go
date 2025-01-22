@@ -41,7 +41,13 @@ func BuildSegmentBin(pipeline *gstreamer.Pipeline, p *config.PipelineConfig) (*g
 	if p.VideoEnabled {
 		h264parse, err = gst.NewElement("h264parse")
 		if err != nil {
-			return nil, err
+			return nil, errors.ErrGstPipelineError(err)
+		}
+		if err = h264parse.SetProperty("config-interval", int(-1)); err != nil {
+			return nil, errors.ErrGstPipelineError(err)
+		}
+		if err = h264parse.SetProperty("disable-passthrough", true); err != nil {
+			return nil, errors.ErrGstPipelineError(err)
 		}
 
 		if err = b.AddElements(h264parse); err != nil {

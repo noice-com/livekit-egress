@@ -365,6 +365,12 @@ func (b *VideoBin) buildAppSrcBin(ts *config.TrackSource, name string) (*gstream
 			if err != nil {
 				return nil, errors.ErrGstPipelineError(err)
 			}
+			if err = h264Parse.SetProperty("config-interval", int(-1)); err != nil {
+				return nil, errors.ErrGstPipelineError(err)
+			}
+			if err = h264Parse.SetProperty("disable-passthrough", true); err != nil {
+				return nil, errors.ErrGstPipelineError(err)
+			}
 
 			if err = appSrcBin.AddElement(h264Parse); err != nil {
 				return nil, err
